@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -6,11 +7,17 @@
 
 #define nil NULL
 
+struct mem_t {
+  char buffer[4096];
+} mem = {{0}};
+
+struct mem_pos_t { int p; };
+
 typedef FILE file_t;
 
 typedef void (*read_word_t)(file_t* file, char* buffer);
 
-enum tokens { IDENTIFIER, NUMBER };
+enum tokens { NOTHING, IDENTIFIER, NUMBER, PUNCT };
 
 struct token_t {
   int type, col, lin;
@@ -28,6 +35,13 @@ void log_token(struct token_t* t) {
   case NUMBER: {
     printf("- {token NUMBER %s (%d, %d)}\n\n",
            t->name,
+           t->lin,
+           t->col);
+  } break;
+  case PUNCT: {
+    int ch = *t->name;
+    printf("- {token PUNCT %c (%d, %d)}\n\n",
+           ch,
            t->lin,
            t->col);
   } break;
@@ -52,7 +66,7 @@ void read_identifier(file_t* file, char* buffer) {
 
 void read_number(file_t* file, char* buffer) {
   // 0b11 - binary
-  // 09   - octal
+  // 09   - octaln
   // 0x11 - hex
 
   int ch = 0;
@@ -60,24 +74,19 @@ void read_number(file_t* file, char* buffer) {
     ch = getc(file);
     *(++buffer) = ch;
     if (ch == 'x') {
-      printf("hex\n");
       while ((ch = getc(file)) > EOF && is_hex_num(ch)) {
         *(++buffer) = ch;
       }
     } else if (ch == 'b') {
-      printf("binary\n");
       while ((ch = getc(file)) > EOF && is_binary_num(ch)) {
         *(++buffer) = ch;
       }
     } else if (is_octal_num(ch)) {
-      printf("octal\n");
       while ((ch = getc(file)) > EOF && is_octal_num(ch)) {
         *(++buffer) = ch;
       }
     }
   } else {
-    printf("regular number\n");
-
     while ((ch = getc(file)) > EOF && is_number(ch)) {
       *(++buffer) = ch;
     }
@@ -89,52 +98,87 @@ void read_number(file_t* file, char* buffer) {
 
 struct token_t* create_token(int type, const char* name,
                              int col, int lin) {
-  struct token_t* t = malloc(sizeof(struct token_t));
+  struct mem_pos_t* m = (struct mem_pos_t*)mem.buffer;
+  struct token_t* t =
+    (struct token_t*)(mem.buffer + sizeof(int) + m->p);
   t->type = type;
   t->col = col;
   t->lin = lin;
   t->name = (char*)name;
+  m->p += sizeof(struct token_t);
   return t;
 }
 
+void log_tokens(void) {
+  struct mem_pos_t* m = (struct mem_pos_t*)mem.buffer;
+  if (m->p == 0) return;
+  int mp = m->p;
+  struct token_t* t;
+  for (int i = 0; i < mp;i++) {
+    t = (struct token_t*)(mem.buffer +
+                          sizeof(int) +
+                          (i * sizeof(struct token_t)));
+    if (t->type == NOTHING) break;
+    log_token(t);
+  }
+}
+
+static char* table =
+  "          "
+  "          "
+  "          "
+  "   !\"#$%&'"
+  "()*+,-./01"
+  "23456789:;"
+  "<=>?@ABCDE"
+  "FGHIJKLMNO"
+  "PQRSTUVWXY"
+  "Z[\\]^_`abc"
+  "defghijklm"
+  "nopqrstuvw"
+  "xyz{|}~   ";
+
 int main(int count, char* args[]) {
-  read_word_t reader[] = {read_identifier,
-                          read_number};
-
-  int lineno = 1, col = 1;
-
+  read_word_t reader[] = {nil,
+                          read_identifier,
+                          read_number,
+                          nil};
   char buff[1024] = {0};
-  int ch = 0;
-  int use = 0;
+  int lineno = 1, col = 1, ch = 0, use = 0;
   file_t* f = fopen(args[1], "r");
+
   while ((ch = getc(f)) > EOF) {
     if (ch == '\n') {
-      printf("[new line]\n\n");
       lineno++, col = 1;
       continue;
     } else if (is_space(ch)) {
       int s = 1;
       while ((ch = getc(f)) > EOF && is_space(ch)) { s++; }
-      printf("[spaces %d]\n\n", s);
       col += s;
     }
 
-    buff[0] = ch;
+    if (ispunct(ch)) {
+      printf("is punct %c %d %c\n", ch, ch, *(table + ch));
+      create_token(PUNCT, table + ch, col, lineno);
+      col += 1;
+    } else {
 
-    if (is_identifier(ch)) {
-      use = IDENTIFIER;
-    }
-    if (is_number(ch)) {
-      use = NUMBER;
-    }
+      buff[0] = ch;
 
-    read_word_t* r = reader + use;
-    (*r)(f, buff);
-    struct token_t* t = create_token(use, strdup(buff), col, lineno);
-    col += strlen(buff) - 1;
-    log_token(t);
-    free_token(t);
+      if (is_identifier(ch)) {
+        use = IDENTIFIER;
+      }
+      if (isdigit(ch)) {
+        use = NUMBER;
+      }
+
+      read_word_t* r = reader + use;
+      (*r)(f, buff);
+      create_token(use, strdup(buff), col, lineno);
+      col += strlen(buff) - 1;
+    }
   }
+  log_tokens();
 
   fclose(f);
 

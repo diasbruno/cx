@@ -1,7 +1,7 @@
 .PHONY: all
 
 build:
-	clang -Wall -Werror main.c -o cx
+	clang -Wall -Werror -g main.c -o cx
 
 all: build
 
