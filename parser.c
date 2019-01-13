@@ -9,7 +9,8 @@ enum decl_t { EMPTY_DECL,
               INCLUDE_DECL,
               DEFINE_DECL,
               DEFINE_FUNCT_DECL,
-              TYPEDEF_DECL };
+              TYPEDEF_DECL,
+              CONTINUE_DECL };
 
 struct typedef_t {
   char* of;
@@ -41,6 +42,15 @@ static int expect_type(int type, int exp) {
 
 #define alloc_ast() (struct ast_t*)malloc(sizeof(struct ast_t))
 
+static struct ast_t* process_continue(struct token_t** ts) {
+  struct ast_t* a = alloc_ast();
+  a->type = CONTINUE_DECL;
+  struct token_t* t = token_next(ts);
+  log_token(t);
+  assert(t->type == ';');
+  return a;
+}
+
 static struct ast_t* process_typedef(struct token_t** ts) {
   struct ast_t* a = alloc_ast();
   struct typedef_t* d =
@@ -65,8 +75,7 @@ static struct ast_t* process_typedef(struct token_t** ts) {
 static struct ast_t* process_define_context(struct token_t** ts) {
   struct token_t* t = *ts;
 
-  struct ast_t* a =
-    (struct ast_t*)malloc(sizeof(struct ast_t));
+  struct ast_t* a = alloc_ast();
   struct define_t* d =
     (struct define_t*)malloc(sizeof(struct define_t));
 
@@ -127,7 +136,7 @@ static struct ast_t* process_include_context(struct token_t** ts) {
   }
   filename[i] = 0;
 
-  struct ast_t* a = (struct ast_t*)malloc(sizeof(struct ast_t));
+  struct ast_t* a = alloc_ast();
   a->type = INCLUDE_DECL;
   a->object = strdup(filename);
 
@@ -183,9 +192,9 @@ static struct ast_t* create_ast(const struct token_t* t,
     /* case STATIC_k: { */
     /*   void; */
     /* } break; */
-    /* case CONTINUE_K: { */
-    /*   void; */
-    /* } break; */
+    case CONTINUE_K: {
+      return process_continue(ts);
+    } break;
     /* case EXTERN_K: { */
     /*   void; */
     /* } break; */
@@ -246,6 +255,9 @@ void log_ast(struct ast_t* a) {
   case TYPEDEF_DECL: {
     struct typedef_t* d = (struct typedef_t*)a->object;
     printf("(typedef %s alias %s)\n", d->of, d->alias);
+  }
+  case CONTINUE_DECL: {
+    printf("(continue)\n");
   }
   }
 }
