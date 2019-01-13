@@ -71,6 +71,17 @@ void test_6(void) {
   cell_t c = sexp();
   assert(is_tagged(c) && nullp(c));
   char* m = malloc(8);
+  push_item(c, m);
+  char* o = (char*)get_car(c);
+  assert(m == o);
+  free(m);
+}
+
+void test_7(void) {
+  printf("test_7\n");
+  cell_t c = sexp();
+  assert(is_tagged(c) && nullp(c));
+  char* m = malloc(8);
   c = set_car(c, m);
   assert(!nullp(c));
   char* n = (char*)get_car(c);
@@ -88,6 +99,7 @@ int main() {
   test_4();
   test_5();
   test_6();
+  test_7();
 
   return 0;
 }
