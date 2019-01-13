@@ -1,1 +1,2 @@
-#define nil NULL
+#define nil \
+  NULL

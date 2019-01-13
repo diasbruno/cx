@@ -45,12 +45,22 @@ static struct ast_t* process_define_context(struct token_t** ts) {
   d->name = strdup(t->name);
 
   t = token_next(ts);
-  assert(t->type == IDENTIFIER);
+  assert(t->type == IDENTIFIER ||
+         t->type == '\\');
   a->type = (t->type != '(') ? DEFINE_DECL : DEFINE_FUNCT_DECL;
 
   cell_t content = sexp();
 
   do {
+    if (expect_type(t->type, '\\')) {
+      t = token_next(ts);
+      if (!expect_type(t->type, '\n')) {
+        perror("invalid new line preprocessor.\n");
+        break;
+      }
+      t = token_next(ts);
+    }
+
     if (expect_type(t->type, '\n')) { break; }
     content = push_item(content, t);
     log_token(t);
