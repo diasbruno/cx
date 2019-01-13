@@ -1,12 +1,6 @@
-values.reduce((acc, b) => {
-  if ((acc[1] % 9) == 0) {
-    acc[0] += "\n";
-  };
-  if (acc[0] in [11,27]) {
-    acc[0] += b[1].length == 2? b[1][1] : b[1];
-  } else {
-    acc[0] += ' ';
-  }
-  acc[1]++;
-  return acc;
-}), ["", 0])
+#include <stdlib.h>
+#define nil null
+
+int main(int count, char* args[]) {
+  return 0;
+}

@@ -1,12 +1,21 @@
 .PHONY: all
 
-build:
-	clang -Wall -Werror -g main.c -o cx
+SOURCES=parser.c cell.c main.c token.c
+OBJECTS=$(SOURCES:%.c=%.o)
+TESTS=test_cell.c
 
-all: build
+%.o: %.c
+	clang -Wall -Werror -g -c $< -o $@
+
+build: $(OBJECTS)
+
+app: build
+	clang -Wall -Werror -g -o cx $(OBJECTS)
+
+all: app
 
 run:
 	./cx test.cx
 
 clean:
-	rm cx
+	rm -rf cx $(OBJECTS)

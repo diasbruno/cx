@@ -3,55 +3,11 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "cx.h"
 #include "char.h"
+#include "token.h"
 
-#define nil NULL
-
-struct mem_t {
-  char buffer[4096];
-} mem = {{0}};
-
-struct mem_pos_t { int p; };
-
-typedef FILE file_t;
-
-typedef void (*read_word_t)(file_t* file, char* buffer);
-
-enum tokens { NOTHING, IDENTIFIER, NUMBER, PUNCT };
-
-struct token_t {
-  int type, col, lin;
-  char* name;
-};
-
-void log_token(struct token_t* t) {
-  switch (t->type) {
-  case IDENTIFIER: {
-    printf("- {token IDENTIFIER %s (%d, %d)}\n\n",
-           t->name,
-           t->lin,
-           t->col);
-  } break;
-  case NUMBER: {
-    printf("- {token NUMBER %s (%d, %d)}\n\n",
-           t->name,
-           t->lin,
-           t->col);
-  } break;
-  case PUNCT: {
-    int ch = *t->name;
-    printf("- {token PUNCT %c (%d, %d)}\n\n",
-           ch,
-           t->lin,
-           t->col);
-  } break;
-  }
-}
-
-void free_token(struct token_t* t) {
-  free(t->name);
-  free(t);
-}
+void parser(struct token_t* ts);
 
 void read_identifier(file_t* file, char* buffer) {
   int ch = 0;
@@ -96,48 +52,6 @@ void read_number(file_t* file, char* buffer) {
   *(++buffer) = 0;
 }
 
-struct token_t* create_token(int type, const char* name,
-                             int col, int lin) {
-  struct mem_pos_t* m = (struct mem_pos_t*)mem.buffer;
-  struct token_t* t =
-    (struct token_t*)(mem.buffer + sizeof(int) + m->p);
-  t->type = type;
-  t->col = col;
-  t->lin = lin;
-  t->name = (char*)name;
-  m->p += sizeof(struct token_t);
-  return t;
-}
-
-void log_tokens(void) {
-  struct mem_pos_t* m = (struct mem_pos_t*)mem.buffer;
-  if (m->p == 0) return;
-  int mp = m->p;
-  struct token_t* t;
-  for (int i = 0; i < mp;i++) {
-    t = (struct token_t*)(mem.buffer +
-                          sizeof(int) +
-                          (i * sizeof(struct token_t)));
-    if (t->type == NOTHING) break;
-    log_token(t);
-  }
-}
-
-static char* table =
-  "          "
-  "          "
-  "          "
-  "   !\"#$%&'"
-  "()*+,-./01"
-  "23456789:;"
-  "<=>?@ABCDE"
-  "FGHIJKLMNO"
-  "PQRSTUVWXY"
-  "Z[\\]^_`abc"
-  "defghijklm"
-  "nopqrstuvw"
-  "xyz{|}~   ";
-
 int main(int count, char* args[]) {
   read_word_t reader[] = {nil,
                           read_identifier,
@@ -158,8 +72,7 @@ int main(int count, char* args[]) {
     }
 
     if (ispunct(ch)) {
-      printf("is punct %c %d %c\n", ch, ch, *(table + ch));
-      create_token(PUNCT, table + ch, col, lineno);
+      create_punct_token(ch);
       col += 1;
     } else {
 
@@ -174,11 +87,12 @@ int main(int count, char* args[]) {
 
       read_word_t* r = reader + use;
       (*r)(f, buff);
-      create_token(use, strdup(buff), col, lineno);
+      (void)create_token(use, strdup(buff), col, lineno);
       col += strlen(buff) - 1;
     }
   }
-  log_tokens();
+
+  parser(tokens());
 
   fclose(f);
 
