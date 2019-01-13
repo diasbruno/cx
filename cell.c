@@ -69,12 +69,12 @@ cell_t push_item(cell_t s, void* e) {
     return set_car(s, e);
   }
 
-  cell_t w = 0;
+  cell_t w = s;
 
-  for (w = s; // (a (b NIL))
-       w && is_tagged(w) && !nullp(w) && nullp(get_cdr(w));
-       w = get_cdr(w)) {
-    printf("1 %p\n", (char*)w);
+  // (a (b NIL))
+  while (w && is_tagged(w) &&
+         !nullp(w) && nullp(get_cdr(w))) {
+    w = get_cdr(w);
   }
 
   cell_t c = sexp();
