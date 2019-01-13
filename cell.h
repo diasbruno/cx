@@ -4,7 +4,7 @@
 typedef unsigned long cell_t;
 
 #define cell_tag ((long)0x8 << 60)
-#define empty_cell_tag ((long)0x4 << 60)
+#define filled_cell_tag ((long)0x4 << 60)
 #define has_tag ((long)0xf << 60)
 
 #define S_TAG(x) ((long)x | cell_tag)

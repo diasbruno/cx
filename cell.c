@@ -31,17 +31,17 @@ cell_t sexp(void) {
                       sizeof(int) +
                       sizeof(struct _cell_t));
   m->p += sizeof(struct _cell_t);
-  return tag((cell_t)c) | empty_cell_tag;
+  return tag((cell_t)c);
 };
 
 int nullp(cell_t s) {
-  return (s & empty_cell_tag) == empty_cell_tag || s == 0;
+  return ((s & filled_cell_tag) != filled_cell_tag) || s == 0;
 }
 
 cell_t set_car(cell_t s, void* e) {
   if (!is_tagged(s)) { return 0; }
   ((struct _cell_t*)untag(s))->car = (cell_t)e;
-  return s & ~empty_cell_tag;
+  return s | filled_cell_tag;
 }
 
 cell_t get_car(cell_t s) {
@@ -53,7 +53,7 @@ cell_t get_car(cell_t s) {
 cell_t set_cdr(cell_t s, void* e) {
   if (!is_tagged(s)) { return 0; }
   ((struct _cell_t*)untag(s))->cdr = (cell_t)e;
-  return s & ~empty_cell_tag;
+  return s | filled_cell_tag;
 }
 
 cell_t get_cdr(cell_t s) {
@@ -65,7 +65,12 @@ cell_t get_cdr(cell_t s) {
 cell_t push_item(cell_t s, void* e) {
   if (!is_tagged(s)) { return 0; }
 
+  if (is_tagged(s) && nullp(s)) {
+    return set_car(s, e);
+  }
+
   cell_t w = 0;
+
   for (w = s; // (a (b NIL))
        w && is_tagged(w) && !nullp(w) && nullp(get_cdr(w));
        w = get_cdr(w)) {
@@ -76,5 +81,5 @@ cell_t push_item(cell_t s, void* e) {
   c = set_car(c, e);
   w = set_cdr(w, (void*)c);
 
-  return w;
+  return s | filled_cell_tag;
 }
