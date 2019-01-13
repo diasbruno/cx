@@ -63,10 +63,7 @@ cell_t get_cdr(cell_t s) {
 }
 
 cell_t push_item(cell_t s, void* e) {
-  if (!is_tagged(s)) {
-    printf("empty\n");
-    return 0;
-  }
+  if (!is_tagged(s)) { return 0; }
 
   cell_t w = 0;
   for (w = s; // (a (b NIL))
@@ -79,5 +76,5 @@ cell_t push_item(cell_t s, void* e) {
   c = set_car(c, e);
   w = set_cdr(w, (void*)c);
 
-  return s;
+  return w;
 }

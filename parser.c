@@ -1,9 +1,16 @@
+#include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 #include "cell.h"
 #include "cx.h"
 #include "token.h"
 
+enum decl_t { INCLUDE_DECL };
+
+struct ast_t {
+  int type;
+  void* object;
+};
 
 void log_token(struct token_t* t);
 
@@ -33,26 +40,25 @@ static int expect_str(const char* str, const char* exp) {
     strncmp(str, exp, l) == 0;
 }
 
-static cell_t process_define_context(cell_t r,
-                                     struct token_t** ts) {
-  struct token_t* t = *ts;
+/* static cell_t process_define_context(cell_t r, */
+/*                                      struct token_t** ts) { */
+/*   struct token_t* t = *ts; */
 
-  switch (t->type) {
-  case IDENTIFIER: {
-    printf("is label\n");
-    push_item(r, t->name);
-  } break;
-  case'(': {
-    printf("is function\n");
-    push_item(r, t->name);
-  } break;
-  }
+/*   switch (t->type) { */
+/*   case IDENTIFIER: { */
+/*     printf("is label\n"); */
+/*     push_item(r, t->name); */
+/*   } break; */
+/*   case'(': { */
+/*     printf("is function\n"); */
+/*     push_item(r, t->name); */
+/*   } break; */
+/*   } */
 
-  return r;
-}
+/*   return r; */
+/* } */
 
-static cell_t process_include_context(cell_t r,
-                                      struct token_t** ts) {
+static struct ast_t* process_include_context(struct token_t** ts) {
 /*
 #include <stdlib.h>
 (include {name})
@@ -82,59 +88,80 @@ static cell_t process_include_context(cell_t r,
     }
 
     printf("filename %c %c %s\n", exp, t->type, filename);
-    log_token(t);
   }
+  filename[i] = 0;
 
-  return r;
+  struct ast_t* a = (struct ast_t*)malloc(sizeof(struct ast_t));
+  a->type = INCLUDE_DECL;
+  a->object = strdup(filename);
+
+  return a;
 }
 
-static cell_t processor_context(struct token_t** ts) {
+static struct ast_t* processor_context(struct token_t** ts) {
   // #include <stdio.h>
   // #define a 000
   // #define f(x) ...
-  printf("pound context\n");
-  cell_t r = sexp();
   struct token_t* t = *ts;
-  log_token(t);
+  struct ast_t* a = nil;
   (void)token_next(ts);
   if (expect_str(t->name, "define")) {
-    printf("define\n");
-    push_item(r, t->name);
-    process_define_context(r, ts);
+    // process_define_context(r, ts);
   } else if (expect_str(t->name, "include")) {
-    printf("include\n");
-    push_item(r, t->name);
-    process_include_context(r, ts);
-    printf("end include\n");
+    a = process_include_context(ts);
   }
 
-  return r;
+  return a;
 }
 
-static cell_t create_ast(cell_t root, const struct token_t* t,
-                         struct token_t** ts) {
+static struct ast_t* create_ast(const struct token_t* t,
+                                struct token_t** ts) {
   log_token((struct token_t*)t);
 
   printf("type: %c\n", (char)t->type);
 
   if (t->type == '#') {
     (void)token_next(ts);
-    cell_t a = processor_context(ts);
-    push_item(root, (void*)a);
+    return processor_context(ts);
   } else {
     (void)token_next(ts);
   }
-
-  return root;
+  return nil;
 }
 
-void parser(struct token_t* ts) {
+void log_ast(struct ast_t* a) {
+  switch(a->type) {
+  case INCLUDE_DECL: {
+    printf("(include %s)\n", (char*)a->object);
+  }
+  }
+}
+
+void print_ast(cell_t root) {
+    if (!is_tagged(root)) {
+    printf("empty\n");
+    return;
+  }
+
+  cell_t w = 0;
+  for (w = root; // (a (b NIL))
+       w && is_tagged(w) && !nullp(w) && nullp(get_cdr(w));
+       w = get_cdr(w)) {
+    log_ast((struct ast_t*)get_car(w));
+  }
+}
+
+void parser(struct token_t* ts, const char* filename) {
   struct token_t* tl = ts;
   struct token_t* t = nil;
   cell_t root = sexp();
+  
+  root = set_car(root, strdup(filename));
   do {
     t = tl;
-    cell_t ast = create_ast(root, t, &tl);
+    printf("%p %p\n", t, tl);
+    struct ast_t* ast = create_ast(t, &tl);
     push_item(root, (void*)ast);
-  } while((t = token_next(&tl)));
+  } while((t = token_next(&tl)) && t->type != 0);
+  print_ast(root);
 }

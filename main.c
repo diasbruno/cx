@@ -7,7 +7,7 @@
 #include "char.h"
 #include "token.h"
 
-void parser(struct token_t* ts);
+void parser(struct token_t* ts, const char* filename);
 
 void read_identifier(file_t* file, char* buffer) {
   int ch = 0;
@@ -92,7 +92,7 @@ int main(int count, char* args[]) {
     }
   }
 
-  parser(tokens());
+  parser(tokens(), args[1]);
 
   fclose(f);
 
