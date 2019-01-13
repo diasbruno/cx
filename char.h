@@ -5,7 +5,9 @@ int is_space(int ch) {
 }
 
 int is_identifier(int ch) {
-  return ch >= 'a' && ch <= 'z';
+  return
+    (ch >= 'a' && ch <= 'z') ||
+    (ch >= 'A' && ch <= 'Z');
 }
 
 int is_number(int ch) {
@@ -25,8 +27,14 @@ int is_binary_num(int ch) {
   return ch >= '0' && ch <= '1';
 }
 
+int is_hex_char_num(int ch) {
+  return
+    (ch >= 'a' && ch <= 'f') ||
+    (ch >= 'A' && ch <= 'F');
+}
+
 int is_hex_num(int ch) {
   return
     (ch >= '0' && ch <= '1') ||
-    (ch >= 'a' && ch <= 'f');
+    is_hex_char_num(ch);
 }
