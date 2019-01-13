@@ -5,7 +5,15 @@
 #include "cx.h"
 #include "token.h"
 
-enum decl_t { INCLUDE_DECL };
+enum decl_t { EMPTY_DECL,
+              INCLUDE_DECL,
+              DEFINE_DECL,
+              DEFINE_FUNCT_DECL };
+
+struct define_t {
+  char* name;
+  cell_t content;
+};
 
 struct ast_t {
   int type;
@@ -14,58 +22,47 @@ struct ast_t {
 
 void log_token(struct token_t* t);
 
-/*
-#define a 1
-(define
-  {name}
-  {content})
-
-#define f(x) (x())
-(define
-   {name}
-   {params}
-   {content})
- */
-
 static int expect_str(const char* str, const char* exp) {
   unsigned long l = strlen(exp);
-  printf("expect(%s,%ld) = (%s,%ld) => %d \n",
-         exp, l,
-         str,
-         strlen(str),
-         strlen(str) == l &&
-         strncmp(str, exp, l) == 0);
   return
     strlen(str) == l &&
     strncmp(str, exp, l) == 0;
 }
 
-/* static cell_t process_define_context(cell_t r, */
-/*                                      struct token_t** ts) { */
-/*   struct token_t* t = *ts; */
+static int expect_type(int type, int exp) {
+  return type == exp;
+}
 
-/*   switch (t->type) { */
-/*   case IDENTIFIER: { */
-/*     printf("is label\n"); */
-/*     push_item(r, t->name); */
-/*   } break; */
-/*   case'(': { */
-/*     printf("is function\n"); */
-/*     push_item(r, t->name); */
-/*   } break; */
-/*   } */
+static struct ast_t* process_define_context(struct token_t** ts) {
+  struct token_t* t = *ts;
 
-/*   return r; */
-/* } */
+  struct ast_t* a =
+    (struct ast_t*)malloc(sizeof(struct ast_t));
+  struct define_t* d =
+    (struct define_t*)malloc(sizeof(struct define_t));
+
+  assert(t->type == IDENTIFIER);
+  d->name = strdup(t->name);
+
+  t = token_next(ts);
+  assert(t->type == IDENTIFIER);
+  a->type = (t->type != '(') ? DEFINE_DECL : DEFINE_FUNCT_DECL;
+
+  cell_t content = sexp();
+
+  do {
+    if (expect_type(t->type, '\n')) { break; }
+    content = push_item(content, t);
+    log_token(t);
+  } while ((t = token_next(ts)));
+
+  d->content = content;
+  a->object = d;
+
+  return a;
+}
 
 static struct ast_t* process_include_context(struct token_t** ts) {
-/*
-#include <stdlib.h>
-(include {name})
-#include a
-(include {name})
- */
-
   struct token_t* t = *ts;
 
   static char filename[1024] = {0};
@@ -78,6 +75,7 @@ static struct ast_t* process_include_context(struct token_t** ts) {
 
   while ((t = token_next(ts)) &&
          t->type != exp) {
+    assert(!expect_type(t->type, '\n'));
     if (t->type < '!') {
       size_t l = strlen(t->name);
       memcpy(filename + i, t->name, l);
@@ -106,11 +104,10 @@ static struct ast_t* processor_context(struct token_t** ts) {
   struct ast_t* a = nil;
   (void)token_next(ts);
   if (expect_str(t->name, "define")) {
-    // process_define_context(r, ts);
+    return process_define_context(ts);
   } else if (expect_str(t->name, "include")) {
-    a = process_include_context(ts);
+    return process_include_context(ts);
   }
-
   return a;
 }
 
@@ -118,9 +115,7 @@ static struct ast_t* create_ast(const struct token_t* t,
                                 struct token_t** ts) {
   log_token((struct token_t*)t);
 
-  printf("type: %c\n", (char)t->type);
-
-  if (t->type == '#') {
+  if (expect_type(t->type, '#')) {
     (void)token_next(ts);
     return processor_context(ts);
   } else {
@@ -133,7 +128,14 @@ void log_ast(struct ast_t* a) {
   switch(a->type) {
   case INCLUDE_DECL: {
     printf("(include %s)\n", (char*)a->object);
-  }
+  } break;
+  case DEFINE_DECL: {
+    struct define_t* d = (struct define_t*)a->object;
+    printf("(define %s)\n", d->name);
+  } break;
+  case DEFINE_FUNCT_DECL: {
+    printf("(define_func %s)\n", (char*)a->object);
+  } break;
   }
 }
 
@@ -155,13 +157,16 @@ void parser(struct token_t* ts, const char* filename) {
   struct token_t* tl = ts;
   struct token_t* t = nil;
   cell_t root = sexp();
-  
-  root = set_car(root, strdup(filename));
+
+  // root = set_car(root, strdup(filename));
+
   do {
     t = tl;
-    printf("%p %p\n", t, tl);
+    if (expect_type(t->type, '\n')) { continue; }
+
     struct ast_t* ast = create_ast(t, &tl);
-    push_item(root, (void*)ast);
+    root = push_item(root, (void*)ast);
   } while((t = token_next(&tl)) && t->type != 0);
+
   print_ast(root);
 }

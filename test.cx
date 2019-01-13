@@ -1,1 +1,1 @@
-#include <stdlib.h>
+#define nil NULL
