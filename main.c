@@ -63,6 +63,7 @@ int main(int count, char* args[]) {
 
   while ((ch = getc(f)) > EOF) {
     if (ch == '\n') {
+      create_punct_token(ch);
       lineno++, col = 1;
       continue;
     } else if (is_space(ch)) {
