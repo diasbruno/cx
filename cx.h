@@ -15,7 +15,33 @@ typedef FILE file_t;
 
 typedef void (*read_word_t)(file_t* file, char* buffer);
 
-enum tokens { NOTHING, IDENTIFIER, NUMBER, PUNCT };
+enum tokens { NOTHING, // 26
+              IDENTIFIER,
+              NUMBER,
+              PUNCT,
+              IF_K, // 4
+              ELSE_K,
+              BREAK_K,
+              SWITCH_K,
+              CASE_K,
+              FOR_K,
+              GOTO_K,
+              UNION_K,
+              STATIC_k,
+              CONTINUE_K,
+              EXTERN_K,
+              CONST_K,
+              SIZEOF_K,
+              WHILE_K,
+              DO_K,
+              VOID_K,
+              DEFAULT_K,
+              TYPEDEF_K,
+              ENUM_K,
+              STRUCT_K,
+              REGISTER_K,
+              VOLATILE_K,
+              RETURN_K };
 
 struct token_t {
   char* name;

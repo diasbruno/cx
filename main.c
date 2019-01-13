@@ -7,6 +7,22 @@
 #include "char.h"
 #include "token.h"
 
+static int keyword_to_type(const char* name) {
+  static char* keywords[] = { "if", "else", "break", "switch",
+                              "case", "for", "goto", "union",
+                              "static", "continue", "extern", "const",
+                              "sizeof", "while", "do", "void",
+                              "default", "typedef", "enum", "struct",
+                              "register", "volatile", "return", 0 };
+  for (int i = 0; i < 23; i++) {
+    char* k = keywords[i];
+    if (strncmp(name, k, strlen(k)) == 0) {
+      return 4 + i;
+    }
+  }
+  return -1;
+}
+
 void parser(struct token_t* ts, const char* filename);
 
 void read_identifier(file_t* file, char* buffer) {
@@ -88,7 +104,12 @@ int main(int count, char* args[]) {
 
       read_word_t* r = reader + use;
       (*r)(f, buff);
-      (void)create_token(use, strdup(buff), col, lineno);
+      int key = keyword_to_type(buff);
+      if (key > -1) {
+        (void)create_punct_token(key);
+      } else {
+        (void)create_token(use, strdup(buff), col, lineno);
+      }
       col += strlen(buff) - 1;
     }
   }

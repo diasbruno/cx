@@ -1,2 +1,1 @@
-#define nil \
-  NULL
+typedef int a_t;

@@ -8,7 +8,13 @@
 enum decl_t { EMPTY_DECL,
               INCLUDE_DECL,
               DEFINE_DECL,
-              DEFINE_FUNCT_DECL };
+              DEFINE_FUNCT_DECL,
+              TYPEDEF_DECL };
+
+struct typedef_t {
+  char* of;
+  char* alias;
+};
 
 struct define_t {
   char* name;
@@ -31,6 +37,29 @@ static int expect_str(const char* str, const char* exp) {
 
 static int expect_type(int type, int exp) {
   return type == exp;
+}
+
+#define alloc_ast() (struct ast_t*)malloc(sizeof(struct ast_t))
+
+static struct ast_t* process_typedef(struct token_t** ts) {
+  struct ast_t* a = alloc_ast();
+  struct typedef_t* d =
+    (struct typedef_t*)malloc(sizeof(struct typedef_t));
+
+  struct token_t* t= nil;
+  t = token_next(ts);
+  d->of = strdup(t->name);
+  t = token_next(ts);
+  d->alias = strdup(t->name);
+  // end
+  t = token_next(ts);
+  log_token(t);
+  assert(t->type == ';');
+
+  a->type = TYPEDEF_DECL;
+  a->object = d;
+
+  return a;
 }
 
 static struct ast_t* process_define_context(struct token_t** ts) {
@@ -63,7 +92,6 @@ static struct ast_t* process_define_context(struct token_t** ts) {
 
     if (expect_type(t->type, '\n')) { break; }
     content = push_item(content, t);
-    log_token(t);
   } while ((t = token_next(ts)));
 
   d->content = content;
@@ -123,13 +151,82 @@ static struct ast_t* processor_context(struct token_t** ts) {
 
 static struct ast_t* create_ast(const struct token_t* t,
                                 struct token_t** ts) {
-  log_token((struct token_t*)t);
-
   if (expect_type(t->type, '#')) {
     (void)token_next(ts);
     return processor_context(ts);
   } else {
-    (void)token_next(ts);
+    switch (t->type) {
+    /* case IF_K: { */
+    /*   void; */
+    /* } break; */
+    /* case ELSE_K: { */
+    /*   void; */
+    /* } break; */
+    /* case BREAK_K: { */
+    /*   void; */
+    /* } break; */
+    /* case SWITCH_K: { */
+    /*   void; */
+    /* } break; */
+    /* case CASE_K: { */
+    /*   void; */
+    /* } break; */
+    /* case FOR_K: { */
+    /*   void; */
+    /* } break; */
+    /* case GOTO_K: { */
+    /*   void; */
+    /* } break; */
+    /* case UNION_K: { */
+    /*   void; */
+    /* } break; */
+    /* case STATIC_k: { */
+    /*   void; */
+    /* } break; */
+    /* case CONTINUE_K: { */
+    /*   void; */
+    /* } break; */
+    /* case EXTERN_K: { */
+    /*   void; */
+    /* } break; */
+    /* case CONST_K: { */
+    /*   void; */
+    /* } break; */
+    /* case SIZEOF_K: { */
+    /*   void; */
+    /* } break; */
+    /* case WHILE_K: { */
+    /*   void; */
+    /* } break; */
+    /* case DO_K: { */
+    /*   void; */
+    /* } break; */
+    /* case VOID_K: { */
+    /*   void; */
+    /* } break; */
+    /* case DEFAULT_K: { */
+    /*   void; */
+    /* } break; */
+    case TYPEDEF_K: {
+      return process_typedef(ts);
+    } break;
+    /* case ENUM_K: { */
+    /*   void; */
+    /* } break; */
+    /* case STRUCT_K: { */
+    /*   void; */
+    /* } break; */
+    /* case REGISTER_K: { */
+    /*   void; */
+    /* } break; */
+    /* case VOLATILE_K: { */
+    /*   void; */
+    /* } break; */
+    /* case   RETURN_K: { */
+    /*   void; */
+    /* } break; */
+    default: {} break;
+    }
   }
   return nil;
 }
@@ -146,6 +243,10 @@ void log_ast(struct ast_t* a) {
   case DEFINE_FUNCT_DECL: {
     printf("(define_func %s)\n", (char*)a->object);
   } break;
+  case TYPEDEF_DECL: {
+    struct typedef_t* d = (struct typedef_t*)a->object;
+    printf("(typedef %s alias %s)\n", d->of, d->alias);
+  }
   }
 }
 
@@ -173,7 +274,6 @@ void parser(struct token_t* ts, const char* filename) {
   do {
     t = tl;
     if (expect_type(t->type, '\n')) { continue; }
-
     struct ast_t* ast = create_ast(t, &tl);
     root = push_item(root, (void*)ast);
   } while((t = token_next(&tl)) && t->type != 0);
