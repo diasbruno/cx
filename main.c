@@ -105,6 +105,7 @@ int main(int count, char* args[]) {
       read_word_t* r = reader + use;
       (*r)(f, buff);
       int key = keyword_to_type(buff);
+      printf("%d\n", key);
       if (key > -1) {
         (void)create_punct_token(key);
       } else {
@@ -114,6 +115,7 @@ int main(int count, char* args[]) {
     }
   }
 
+  log_tokens();
   parser(tokens(), args[1]);
 
   fclose(f);

@@ -19,8 +19,8 @@ enum tokens { NOTHING, // 26
               IDENTIFIER,
               NUMBER,
               PUNCT,
-              IF_K, // 4
-              ELSE_K,
+              IF_K, // 4 1
+              ELSE_K, // 1
               BREAK_K,
               SWITCH_K,
               CASE_K,

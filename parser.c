@@ -9,8 +9,13 @@ enum decl_t { EMPTY_DECL,
               INCLUDE_DECL,
               DEFINE_DECL,
               DEFINE_FUNCT_DECL,
-              TYPEDEF_DECL,
-              CONTINUE_DECL };
+              IF_DECL = 4,
+              BREAK_DECL = 6,
+              GOTO_DECL = 10,
+              CONTINUE_DECL = 14,
+              DEFAULT_DECL = 21,
+              TYPEDEF_DECL = 22,
+              };
 
 struct typedef_t {
   char* of;
@@ -20,6 +25,11 @@ struct typedef_t {
 struct define_t {
   char* name;
   cell_t content;
+};
+
+struct if_t {
+  cell_t test;
+  cell_t body;
 };
 
 struct ast_t {
@@ -42,10 +52,49 @@ static int expect_type(int type, int exp) {
 
 #define alloc_ast() (struct ast_t*)malloc(sizeof(struct ast_t))
 
-static struct ast_t* process_continue(struct token_t** ts) {
+static struct ast_t* process_goto(struct token_t** ts) {
   struct ast_t* a = alloc_ast();
-  a->type = CONTINUE_DECL;
+  a->type = GOTO_DECL;
   struct token_t* t = token_next(ts);
+  assert(t->type == '(');
+  a->object = strdup(t->name);
+  t = token_next(ts);
+  assert(t->type == ';');
+  return a;
+}
+
+static struct ast_t* process_parens_expr(struct token_t** ts) {
+  struct ast_t* a = alloc_ast();
+  struct parens_t* i = (struct if_t*)malloc(sizeof(struct if_t));
+  struct token_t* t = nil;
+  cell_t r = sexp();
+  while ((t = token_next(ts)) && t->type != ')') {
+    log_token(t);
+    r = push_item(r, t);
+  }
+  i->test = r;
+  return nil;
+}
+
+static struct ast_t* process_if(struct token_t** ts) {
+  struct token_t* t = nil;
+  struct ast_t* a = alloc_ast();
+  a->type = IF_DECL;
+  t = token_next(ts);
+  log_token(t);
+  assert(t->type == '(');
+  (void)process_parens_expr(ts);
+  t = *ts;
+  log_token(t);
+  assert(t->type == ')');
+  return a;
+}
+
+static struct ast_t* process_single_statement(struct token_t** ts) {
+  struct token_t* t = *ts;
+  struct ast_t* a = alloc_ast();
+  a->type = t->type; // use the same #
+  t = token_next(ts);
   log_token(t);
   assert(t->type == ';');
   return a;
@@ -160,18 +209,18 @@ static struct ast_t* processor_context(struct token_t** ts) {
 
 static struct ast_t* create_ast(const struct token_t* t,
                                 struct token_t** ts) {
+  printf("type %c %d\n", t->type, t->type);
+
   if (expect_type(t->type, '#')) {
     (void)token_next(ts);
     return processor_context(ts);
+  } else if (expect_type(t->type, '(')) {
+    (void)token_next(ts);
+    return process_if(ts);
   } else {
     switch (t->type) {
-    /* case IF_K: { */
-    /*   void; */
-    /* } break; */
+    case IF_K: return process_if(ts);
     /* case ELSE_K: { */
-    /*   void; */
-    /* } break; */
-    /* case BREAK_K: { */
     /*   void; */
     /* } break; */
     /* case SWITCH_K: { */
@@ -183,18 +232,16 @@ static struct ast_t* create_ast(const struct token_t* t,
     /* case FOR_K: { */
     /*   void; */
     /* } break; */
-    /* case GOTO_K: { */
-    /*   void; */
-    /* } break; */
+    case GOTO_K: return process_goto(ts);
     /* case UNION_K: { */
     /*   void; */
     /* } break; */
     /* case STATIC_k: { */
     /*   void; */
     /* } break; */
-    case CONTINUE_K: {
-      return process_continue(ts);
-    } break;
+    case DEFAULT_K:
+    case BREAK_K:
+    case CONTINUE_K: return process_single_statement(ts);
     /* case EXTERN_K: { */
     /*   void; */
     /* } break; */
@@ -213,12 +260,7 @@ static struct ast_t* create_ast(const struct token_t* t,
     /* case VOID_K: { */
     /*   void; */
     /* } break; */
-    /* case DEFAULT_K: { */
-    /*   void; */
-    /* } break; */
-    case TYPEDEF_K: {
-      return process_typedef(ts);
-    } break;
+    case TYPEDEF_K: return process_typedef(ts);
     /* case ENUM_K: { */
     /*   void; */
     /* } break; */
@@ -258,30 +300,41 @@ void log_ast(struct ast_t* a) {
   }
   case CONTINUE_DECL: {
     printf("(continue)\n");
-  }
+  } break;
+  case BREAK_DECL: {
+    printf("(break)\n");
+  } break;
+  case DEFAULT_DECL: {
+    printf("(default)\n");
+  } break;
+  case GOTO_DECL: {
+    printf("(goto label: %s)\n", (char*)a->object);
+  } break;
+  case IF_DECL: {
+    printf("(if %s)\n", (char*)a->object);
+  } break;
   }
 }
 
 void print_ast(cell_t root) {
     if (!is_tagged(root)) {
-    printf("empty\n");
-    return;
+     return;
   }
 
   cell_t w = 0;
   for (w = root; // (a (b NIL))
        w && is_tagged(w) && !nullp(w) && nullp(get_cdr(w));
        w = get_cdr(w)) {
-    log_ast((struct ast_t*)get_car(w));
+    struct ast_t* a = (struct ast_t*)get_car(w);
+    if (!a) { break; }
+    log_ast(a);
   }
 }
 
 void parser(struct token_t* ts, const char* filename) {
   struct token_t* tl = ts;
-  struct token_t* t = nil;
   cell_t root = sexp();
-
-  // root = set_car(root, strdup(filename));
+  struct token_t* t = nil;
 
   do {
     t = tl;
